@@ -10,7 +10,8 @@ const productSchema = new mongoose.Schema({
   price: { type: Number, required: true },
   drawableResId: { type: String, required: true },
   description: { type: String },
-  category: { type: String, required: true }
+  category: { type: String, required: true },
+  availableUnits: { type: Number, default: 50 }
 }, { timestamps: true });
 
 productSchema.set('toJSON', {

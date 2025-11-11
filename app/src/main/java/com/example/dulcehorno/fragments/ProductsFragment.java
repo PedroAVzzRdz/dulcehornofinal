@@ -66,9 +66,53 @@ public class ProductsFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        filteredProducts.clear();
-        filteredProducts.addAll(ProductManager.getInstance().getProducts());
-        adapter.notifyDataSetChanged();
+        refreshProducts();
+    }
+    
+    private void refreshProducts() {
+        if (allProducts == null || adapter == null) {
+            return; // Aún no se ha inicializado el fragment
+        }
+        
+        // Actualizar la lista de productos desde ProductManager
+        allProducts.clear();
+        allProducts.addAll(ProductManager.getInstance().getProducts());
+        
+        // Actualizar el spinner de categorías
+        if (spinnerCategory != null) {
+            setupCategorySpinner();
+        }
+        
+        // Aplicar filtros para actualizar la lista mostrada
+        applyFilters();
+    }
+    
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Registrar listener del carrito para actualizar stock cuando cambia
+        CartManager.getInstance().addListener(this::onCartChanged);
+    }
+    
+    @Override
+    public void onStop() {
+        super.onStop();
+        // Remover listener del carrito
+        CartManager.getInstance().removeListener(this::onCartChanged);
+    }
+    
+    private void onCartChanged() {
+        // Cuando cambia el carrito, actualizar la UI para reflejar el stock disponible
+        if (!isAdded() || getActivity() == null || adapter == null) {
+            return;
+        }
+        
+        // Asegurar que se ejecute en el hilo UI
+        getActivity().runOnUiThread(() -> {
+            if (isAdded() && adapter != null) {
+                adapter.notifyDataSetChanged();
+            }
+        });
     }
 
 
@@ -80,7 +124,7 @@ public class ProductsFragment extends Fragment {
         editTextSearch = view.findViewById(R.id.editTextSearch);
         spinnerCategory = view.findViewById(R.id.spinnerCategory);
 
-        allProducts = ProductManager.getInstance().getProducts();
+        allProducts = new ArrayList<>(ProductManager.getInstance().getProducts());
         filteredProducts = new ArrayList<>(allProducts);
 
         adapter = new ProductAdapter(
@@ -164,13 +208,16 @@ public class ProductsFragment extends Fragment {
      * Antes verifica que no se exceda el límite de unidades disponibles.
      */
     private void showQuantityDialog(Product product) {
+        // Obtener stock disponible considerando el carrito
+        int availableStock = ProductManager.getInstance().getAvailableStock(product.getId());
+        
         EditText input = new EditText(requireContext());
         input.setInputType(InputType.TYPE_CLASS_NUMBER);
         input.setHint("Cantidad (ej. 1)");
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Cantidad")
-                .setMessage("¿Cuántas unidades quieres agregar?\nDisponibles: " + product.getAvailableUnits())
+                .setMessage("¿Cuántas unidades quieres agregar?\nDisponibles: " + availableStock)
                 .setView(input)
                 .setPositiveButton("Agregar", (dialog, which) -> {
                     String text = input.getText().toString().trim();
@@ -184,20 +231,26 @@ public class ProductsFragment extends Fragment {
                         qty = 1;
                     }
 
-                    // 🔍 Verificación de stock disponible
-                    if (product.getAvailableUnits() <= 0) {
+                    // 🔍 Verificación de stock disponible (considerando el carrito)
+                    if (availableStock <= 0) {
                         Toast.makeText(getContext(), "Este producto está agotado.", Toast.LENGTH_LONG).show();
                         return;
                     }
 
-                    if (qty > product.getAvailableUnits()) {
-                        Toast.makeText(getContext(), "Solo hay " + product.getAvailableUnits() + " unidades disponibles.", Toast.LENGTH_LONG).show();
+                    if (qty > availableStock) {
+                        Toast.makeText(getContext(), "Solo hay " + availableStock + " unidades disponibles.", Toast.LENGTH_LONG).show();
                         return;
                     }
 
                     // ✅ Si la cantidad es válida, agregar al carrito
                     CartManager.getInstance().addToCart(product, qty);
-                    Toast.makeText(getContext(), product.getName() + " x" + qty + " agregado al carrito", Toast.LENGTH_SHORT).show();
+                    
+                    if (isAdded() && getContext() != null) {
+                        Toast.makeText(getContext(), product.getName() + " x" + qty + " agregado al carrito", Toast.LENGTH_SHORT).show();
+                        
+                        // La UI se actualizará automáticamente a través del listener del carrito
+                        // No es necesario llamar notifyDataSetChanged() aquí ya que onCartChanged() lo hará
+                    }
 
                 })
                 .setNegativeButton("Cancelar", null)

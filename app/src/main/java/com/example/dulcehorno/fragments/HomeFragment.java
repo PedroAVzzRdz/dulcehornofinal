@@ -145,17 +145,41 @@ public class HomeFragment extends Fragment {
                 String responseBody = response.body() != null ? response.body().string() : "";
 
                 if (response.isSuccessful()) {
-                    Type listType = new TypeToken<List<Product>>() {}.getType();
-                    List<Product> products = gson.fromJson(responseBody, listType);
+                    try {
+                        Type listType = new TypeToken<List<Product>>() {}.getType();
+                        List<Product> products = gson.fromJson(responseBody, listType);
 
-                    ProductManager productManager = ProductManager.getInstance();
-                    productManager.clear();
-                    for (Product p : products) {
-                        productManager.addProduct(p);
+                        if (products == null || products.isEmpty()) {
+                            requireActivity().runOnUiThread(() ->
+                                    Toast.makeText(getContext(), "No se encontraron productos", Toast.LENGTH_SHORT).show()
+                            );
+                            return;
+                        }
+
+                        ProductManager productManager = ProductManager.getInstance();
+                        productManager.clear();
+                        for (Product p : products) {
+                            if (p != null && p.getId() != null && p.getName() != null) {
+                                productManager.addProduct(p);
+                            }
+                        }
+
+                        // Mostrar ProductsFragment SOLO después de cargar productos
+                        requireActivity().runOnUiThread(() -> {
+                            showDefaultFragment();
+                            // Log para debug
+                            android.util.Log.d("HomeFragment", "Productos cargados: " + productManager.getProducts().size());
+                            for (Product prod : productManager.getProducts()) {
+                                android.util.Log.d("HomeFragment", "  - " + prod.getName() + " (" + prod.getDrawableResId() + ")");
+                            }
+                        });
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        requireActivity().runOnUiThread(() ->
+                                Toast.makeText(getContext(), "Error al procesar productos: " + e.getMessage(), Toast.LENGTH_LONG).show()
+                        );
                     }
-
-                    // Mostrar ProductsFragment SOLO después de cargar productos
-                    requireActivity().runOnUiThread(() -> showDefaultFragment());
 
                 } else {
                     String errorMessage = ErrorHandler.getErrorMessage(responseBody);

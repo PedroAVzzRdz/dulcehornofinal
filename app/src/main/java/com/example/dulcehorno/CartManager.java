@@ -31,30 +31,61 @@ public class CartManager {
     }
 
     private void notifyListeners() {
-        for (CartChangeListener l : new ArrayList<>(listeners)) l.onCartUpdated();
+        // Crear una copia de la lista para evitar ConcurrentModificationException
+        List<CartChangeListener> listenersCopy = new ArrayList<>(listeners);
+        for (CartChangeListener l : listenersCopy) {
+            try {
+                if (l != null) {
+                    l.onCartUpdated();
+                }
+            } catch (Exception e) {
+                // Log del error pero continuar con otros listeners
+                android.util.Log.e("CartManager", "Error notificando listener", e);
+            }
+        }
     }
 
     // Añadir producto con cantidad — si ya existe, sumar la cantidad
     public void addToCart(Product product, int quantity) {
-        if (quantity <= 0) return;
-        for (CartItem item : cartItems) {
-            if (item.getProduct().getId().equals(product.getId())) {
-                item.setQuantity(item.getQuantity() + quantity);
-                notifyListeners();
-                return;
-            }
+        if (quantity <= 0 || product == null || product.getId() == null) {
+            return;
         }
-        cartItems.add(new CartItem(product, quantity));
-        notifyListeners();
+        
+        try {
+            for (CartItem item : cartItems) {
+                if (item != null && item.getProduct() != null && 
+                    item.getProduct().getId() != null && 
+                    item.getProduct().getId().equals(product.getId())) {
+                    item.setQuantity(item.getQuantity() + quantity);
+                    notifyListeners();
+                    return;
+                }
+            }
+            cartItems.add(new CartItem(product, quantity));
+            notifyListeners();
+        } catch (Exception e) {
+            android.util.Log.e("CartManager", "Error agregando producto al carrito", e);
+        }
     }
 
     public void removeFromCart(Product product) {
-        for (int i = 0; i < cartItems.size(); i++) {
-            if (cartItems.get(i).getProduct().getId().equals(product.getId())) {
-                cartItems.remove(i);
-                notifyListeners();
-                return;
+        if (product == null || product.getId() == null) {
+            return;
+        }
+        
+        try {
+            for (int i = 0; i < cartItems.size(); i++) {
+                CartItem item = cartItems.get(i);
+                if (item != null && item.getProduct() != null && 
+                    item.getProduct().getId() != null && 
+                    item.getProduct().getId().equals(product.getId())) {
+                    cartItems.remove(i);
+                    notifyListeners();
+                    return;
+                }
             }
+        } catch (Exception e) {
+            android.util.Log.e("CartManager", "Error removiendo producto del carrito", e);
         }
     }
 

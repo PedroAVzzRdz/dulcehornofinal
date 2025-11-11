@@ -63,18 +63,35 @@ app.post("/api/login", async (req, res) => {
 // ---------------------------------------------
 
 app.get('/api/products', async (req, res) => {
-    const products = await Product.find().sort({ name: 1 });
-    res.status(200).json(products);
+    try {
+        const products = await Product.find().sort({ category: 1, name: 1 });
+        // Asegurar que todos los productos tengan availableUnits
+        const productsWithDefaults = products.map(p => ({
+            ...p.toObject(),
+            availableUnits: p.availableUnits || 50
+        }));
+        res.status(200).json(productsWithDefaults);
+    } catch (error) {
+        console.error('Error obteniendo productos:', error);
+        res.status(500).json({ message: 'Error al obtener productos' });
+    }
 });
 
 app.post('/api/products', async (req, res) => {
-    const { name, price, drawableResId, description, category } = req.body;
+    const { name, price, drawableResId, description, category, availableUnits } = req.body;
     if (!name || price == null || !drawableResId || !category) return res.status(400).json({ message: 'Faltan campos obligatorios' });
 
     const existing = await Product.findOne({ name, category });
     if (existing) return res.status(409).json({ message: 'Producto ya existe en esa categoría' });
 
-    const newProduct = new Product({ name, price, drawableResId, description, category });
+    const newProduct = new Product({ 
+        name, 
+        price, 
+        drawableResId, 
+        description, 
+        category, 
+        availableUnits: availableUnits || 50 
+    });
     const savedProduct = await newProduct.save();
     res.status(201).json(savedProduct);
 });
@@ -128,12 +145,39 @@ app.post('/api/receipts', authenticateToken, async (req, res) => {
     }
 
     const processedItems = [];
+    
+    // Validar stock y procesar items
     for (const item of items) {
         const productId = item.product?._id || item.product?.id || item.product;
         if (!productId) return res.status(400).json({ message: 'Cada item debe tener un product válido' });
-        const exists = await Product.findById(productId);
-        if (!exists) return res.status(404).json({ message: `Producto con id ${productId} no encontrado` });
-        processedItems.push({ product: productId, quantity: item.quantity });
+        
+        const product = await Product.findById(productId);
+        if (!product) return res.status(404).json({ message: `Producto con id ${productId} no encontrado` });
+        
+        // Validar stock disponible
+        const requestedQuantity = item.quantity || 0;
+        const availableStock = product.availableUnits || 0;
+        
+        if (requestedQuantity <= 0) {
+            return res.status(400).json({ message: `La cantidad para ${product.name} debe ser mayor a 0` });
+        }
+        
+        if (requestedQuantity > availableStock) {
+            return res.status(400).json({ 
+                message: `No hay suficiente stock para ${product.name}. Disponible: ${availableStock}, Solicitado: ${requestedQuantity}` 
+            });
+        }
+        
+        processedItems.push({ product: productId, quantity: requestedQuantity });
+    }
+
+    // Actualizar stock de productos
+    for (const item of processedItems) {
+        const product = await Product.findById(item.product);
+        if (product) {
+            product.availableUnits = Math.max(0, (product.availableUnits || 0) - item.quantity);
+            await product.save();
+        }
     }
 
     const user = await User.findById(req.user.id);

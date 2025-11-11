@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/bg_dialog_rounded"
+    android:minWidth="300dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Selecciona tu dirección de entrega"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="#3E2723"
+        android:layout_marginBottom="16dp"
+        android:gravity="center" />
+
+    <!-- Barra de búsqueda -->
+    <EditText
+        android:id="@+id/edit_search_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Buscar dirección..."
+        android:padding="12dp"
+        android:background="@drawable/bg_edittext_rounded"
+        android:textSize="14sp"
+        android:layout_marginBottom="12dp"
+        android:inputType="text"
+        android:imeOptions="actionSearch" />
+
+    <!-- Mapa -->
+    <com.google.android.gms.maps.MapView
+        android:id="@+id/map_view"
+        android:layout_width="match_parent"
+        android:layout_height="350dp"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Dirección seleccionada -->
+    <TextView
+        android:id="@+id/text_selected_address"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Dirección: Busca y selecciona una dirección válida"
+        android:textSize="14sp"
+        android:textColor="#795548"
+        android:layout_marginBottom="16dp"
+        android:padding="12dp"
+        android:background="@drawable/bg_edittext_rounded"
+        android:gravity="center_vertical"
+        android:minHeight="60dp" />
+
+    <!-- Botones -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/button_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Cancelar"
+            android:layout_marginEnd="8dp"
+            android:textColor="#795548"
+            android:backgroundTint="@android:color/transparent" />
+
+        <Button
+            android:id="@+id/button_confirm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Confirmar"
+            android:textColor="@android:color/white"
+            android:backgroundTint="#795548"
+            android:enabled="false" />
+
+    </LinearLayout>
+
+</LinearLayout>
